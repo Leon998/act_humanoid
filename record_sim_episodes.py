@@ -45,10 +45,10 @@ def main():
         episode = [ts]
         object_trajectory = np.zeros((1, 3))
         # setup plotting
-        if onscreen_render:
-            ax = plt.subplot()
-            plt_img = ax.imshow(ts.observation['images'][render_cam_name])
-            plt.ion()
+        # if onscreen_render:
+        #     ax = plt.subplot()
+        #     plt_img = ax.imshow(ts.observation['images'][render_cam_name])
+        #     plt.ion()
         for step in range(episode_len):
             action = joint_traj[step]
             ts = env.step(action)
@@ -56,10 +56,10 @@ def main():
             t_o2w = env.task.get_inhand_obj_pos(t_h2w)
             object_trajectory = np.concatenate((object_trajectory, t_o2w.reshape(1, 3)), axis=0)
             episode.append(ts)
-            if onscreen_render:
-                plt_img.set_data(ts.observation['images'][render_cam_name])
-                plt.pause(0.001)
-        plt.close()
+            # if onscreen_render:
+            #     plt_img.set_data(ts.observation['images'][render_cam_name])
+            #     plt.pause(0.001)
+        # plt.close()
         # save the object trajectory
         object_trajectory = object_trajectory[1:]  # remove the initial zero row
         # Modify object_trajectory as per the requirement
@@ -86,7 +86,9 @@ def main():
             action = joint_traj[step]
             ts = env.step(action)
             t_o2w = object_trajectory[step]
-            env.task.draw_traj(t_o2w, env.physics)
+            env.task.draw_traj('object_joint', t_o2w, env.physics)
+            elbow_position, _ = env.task.forward_kinematics('link4l', env.physics)
+            env.task.draw_traj('elbow_joint', elbow_position, env.physics)
             # print(ts.observation['qpos'][-1])  # check hand open-close status
             # print(ts.observation['env_state'])  # check object trajectory
             episode_replay.append(ts)

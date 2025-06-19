@@ -63,9 +63,9 @@ class HumanoidTask(base.Task):
 
         return position, orientation
     
-    def draw_traj(self, position, physics):
+    def draw_traj(self, name, position, physics):
         # Visualize the position in the simulation environment
-        physics.named.data.qpos['visualization_sphere_joint'][:3] = position
+        physics.named.data.qpos[name][:3] = position
     
 
     @staticmethod
@@ -141,7 +141,7 @@ class PnPTask(HumanoidTask):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.named.data.qpos['visualization_sphere_joint'].copy()[:3]
+        env_state = physics.named.data.qpos['object_joint'].copy()[:3]
         return env_state
 
     def get_reward(self, physics):
