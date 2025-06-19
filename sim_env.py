@@ -7,7 +7,7 @@ from dm_control.rl import control
 from dm_control.suite import base
 from scipy.spatial.transform import Rotation as R
 
-from constants import DT, XML_DIR, START_ARM_POSE, HAND_ACTION_NORMALIZE
+from constants import DT, XML_DIR, START_ARM_POSE, HAND_ACTION_UNNORMALIZE, HAND_ACTION_NORMALIZE
 
 import IPython
 e = IPython.embed
@@ -41,7 +41,7 @@ class HumanoidTask(base.Task):
     def before_step(self, action, physics):
         env_action = np.zeros(36)
         left_arm_action = action[:8]
-        left_hand_action = HAND_ACTION_NORMALIZE(action[8:])
+        left_hand_action = HAND_ACTION_UNNORMALIZE(action[8:])
         env_action[18:26] = left_arm_action
         env_action[26:36] = left_hand_action
         super().before_step(env_action, physics)
@@ -73,7 +73,9 @@ class HumanoidTask(base.Task):
         qpos_raw = physics.data.qpos.copy()
         left_qpos_raw = qpos_raw[18:]
         left_arm_qpos = left_qpos_raw[:8]
-        return np.array(left_arm_qpos)
+        left_hand_qpos_raw = left_qpos_raw[8:]
+        left_hand_qpos = [HAND_ACTION_NORMALIZE(left_hand_qpos_raw)]
+        return np.concatenate([left_arm_qpos, left_hand_qpos])
 
     @staticmethod
     def get_qvel(physics):
@@ -139,7 +141,7 @@ class PnPTask(HumanoidTask):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.data.qpos.copy()[-7:]
+        env_state = physics.named.data.qpos['visualization_sphere_joint'].copy()[:3]
         return env_state
 
     def get_reward(self, physics):

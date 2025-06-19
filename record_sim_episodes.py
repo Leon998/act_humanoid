@@ -13,41 +13,6 @@ import IPython
 e = IPython.embed
 
 
-# def interpolate_action_sequence(action_sequence, episode_len):
-#     """
-#     Interpolate the action sequence to match the episode length.
-#     :param action_sequence: np.ndarray, shape (n_steps, n_actions)
-#     :param episode_len: int, desired length of the episode
-#     :return: np.ndarray, interpolated action sequence
-#     """
-#     if len(action_sequence) < episode_len:
-#         interpolated_actions = []
-#         for col in range(action_sequence.shape[1]):
-#             interpolated_col = np.interp(
-#                 np.linspace(0, len(action_sequence) - 1, episode_len),
-#                 np.arange(len(action_sequence)),
-#                 action_sequence[:, col]
-#             )
-#             interpolated_actions.append(interpolated_col)
-#         return np.array(interpolated_actions).T
-#     else:
-#         return action_sequence[:episode_len]
-    
-# def get_T_o2h(pose_path):
-#     with open(pose_path, 'r') as file:
-#         grasp_pose = file.readline().strip().split()
-#         t_h2o = [float(grasp_pose[i]) for i in range(3)]  # 手相对于物体的平移量
-#         q_h2o = [float(grasp_pose[i]) for i in range(3, 7)]  # 手相对于物体的旋转四元数, [x, y, z, w]
-#     # Convert quaternion to rotation matrix
-#     R_h2o = R.from_quat(q_h2o).as_matrix()
-#     # Compute the inverse rotation matrix
-#     R_o2h = R_h2o.T
-#     # Compute the inverse translation
-#     t_o2h = -R_o2h @ t_h2o
-#     # Convert the inverse rotation matrix back to quaternion
-#     q_o2h = R.from_matrix(R_o2h).as_quat()
-#     return t_o2h, q_o2h
-
 def main():
     """
     Generate demonstration data in simulation.
@@ -70,9 +35,10 @@ def main():
 
     for episode_idx in range(num_episodes):
         print(f'{episode_idx=}')
+        print('Recording object trajectories')
         # Load action sequence from file
-        action_sequence_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/action_sequence.txt")
-        action_sequence = np.loadtxt(action_sequence_path)[:,]
+        joint_traj_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/action_sequence.txt")
+        joint_traj = np.loadtxt(joint_traj_path)[:,]
         # setup the environment
         env = make_sim_env()
         ts = env.reset()
@@ -84,12 +50,11 @@ def main():
             plt_img = ax.imshow(ts.observation['images'][render_cam_name])
             plt.ion()
         for step in range(episode_len):
-            action = action_sequence[step]
+            action = joint_traj[step]
             ts = env.step(action)
             t_h2w, q_h2w = env.task.forward_kinematics('link7l', env.physics)
             t_o2w = env.task.get_inhand_obj_pos(t_h2w)
             object_trajectory = np.concatenate((object_trajectory, t_o2w.reshape(1, 3)), axis=0)
-            env.task.draw_traj(t_o2w, env.physics)
             episode.append(ts)
             if onscreen_render:
                 plt_img.set_data(ts.observation['images'][render_cam_name])
@@ -103,6 +68,75 @@ def main():
         object_trajectory_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/object_trajectory.txt")
         np.savetxt(object_trajectory_path, object_trajectory)
 
+        # clear unused variables
+        del env
+        del episode
+
+        # setup the environment
+        print('Replaying')
+        env = make_sim_env()
+
+        episode_replay = [ts]
+        # setup plotting
+        if onscreen_render:
+            ax = plt.subplot()
+            plt_img = ax.imshow(ts.observation['images'][render_cam_name])
+            plt.ion()
+        for step in range(episode_len):
+            action = joint_traj[step]
+            ts = env.step(action)
+            t_o2w = object_trajectory[step]
+            env.task.draw_traj(t_o2w, env.physics)
+            # print(ts.observation['qpos'][-1])  # check hand open-close status
+            # print(ts.observation['env_state'])  # check object trajectory
+            episode_replay.append(ts)
+            if onscreen_render:
+                plt_img.set_data(ts.observation['images'][render_cam_name])
+                plt.pause(0.001)
+        plt.close()
+
+        # save data
+        """
+        For each timestep:
+        observations
+        - qpos                  (9,)         'float64'
+        - env_state             (3,)          'float64'
+
+        action                  (9,)         'float64'
+        """
+        data_dict = {
+            '/observations/qpos': [],
+            '/observations/env_state': [],
+            '/action': [],
+        }
+        joint_traj = joint_traj.tolist()
+        episode_replay = episode_replay[:-1]
+        max_timesteps = len(joint_traj)
+        while joint_traj:
+            action = joint_traj.pop(0)
+            ts = episode_replay.pop(0)
+            data_dict['/observations/qpos'].append(ts.observation['qpos'])
+            data_dict['/observations/env_state'].append(ts.observation['env_state'])
+            data_dict['/action'].append(action)
+
+        # HDF5
+        t0 = time.time()
+        save_dir = dataset_dir + task_name + "/"
+        dataset_path = os.path.join(save_dir, f'episode_{episode_idx}')
+        with h5py.File(dataset_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
+            root.attrs['sim'] = True
+            obs = root.create_group('observations')
+            qpos = obs.create_dataset('qpos', (max_timesteps, 9))
+            env_state = obs.create_dataset('env_state', (max_timesteps, 3))
+            action = root.create_dataset('action', (max_timesteps, 9))
+
+            for name, array in data_dict.items():
+                root[name][...] = array
+        print(f'Saving: {time.time() - t0:.1f} secs\n')
+
+    print(f'Saved to {save_dir}')
+
+        
 
 if __name__ == '__main__':
     

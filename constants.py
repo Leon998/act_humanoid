@@ -43,7 +43,7 @@ DT = 0.02
 START_ARM_POSE = [0, 0, 0, 0, -1.54, 0, 0, 0]
 HAND_OPEN = [0 for _ in range(10)]  # 10 DoF hand open
 HAND_GRASP = [1 for _ in range(10)]  # 10 DoF hand grasp, all fingers closed
-HAND_ACTION_NORMALIZE = lambda x: HAND_GRASP if x else HAND_OPEN  # x为零表示张开，为1表示闭合
-
+HAND_ACTION_UNNORMALIZE = lambda x: HAND_GRASP if x else HAND_OPEN  # 0表示张开，为1表示闭合
+HAND_ACTION_NORMALIZE = lambda x: 1 if x[0]>=0.5 else 0  # 0表示张开，为1表示闭合
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/dualarmhand0513/' # note: absolute path
 

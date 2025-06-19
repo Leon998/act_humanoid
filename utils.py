@@ -201,3 +201,38 @@ def detach_dict(d):
 def set_seed(seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
+
+# def interpolate_action_sequence(action_sequence, episode_len):
+#     """
+#     Interpolate the action sequence to match the episode length.
+#     :param action_sequence: np.ndarray, shape (n_steps, n_actions)
+#     :param episode_len: int, desired length of the episode
+#     :return: np.ndarray, interpolated action sequence
+#     """
+#     if len(action_sequence) < episode_len:
+#         interpolated_actions = []
+#         for col in range(action_sequence.shape[1]):
+#             interpolated_col = np.interp(
+#                 np.linspace(0, len(action_sequence) - 1, episode_len),
+#                 np.arange(len(action_sequence)),
+#                 action_sequence[:, col]
+#             )
+#             interpolated_actions.append(interpolated_col)
+#         return np.array(interpolated_actions).T
+#     else:
+#         return action_sequence[:episode_len]
+    
+# def get_T_o2h(pose_path):
+#     with open(pose_path, 'r') as file:
+#         grasp_pose = file.readline().strip().split()
+#         t_h2o = [float(grasp_pose[i]) for i in range(3)]  # 手相对于物体的平移量
+#         q_h2o = [float(grasp_pose[i]) for i in range(3, 7)]  # 手相对于物体的旋转四元数, [x, y, z, w]
+#     # Convert quaternion to rotation matrix
+#     R_h2o = R.from_quat(q_h2o).as_matrix()
+#     # Compute the inverse rotation matrix
+#     R_o2h = R_h2o.T
+#     # Compute the inverse translation
+#     t_o2h = -R_o2h @ t_h2o
+#     # Convert the inverse rotation matrix back to quaternion
+#     q_o2h = R.from_matrix(R_o2h).as_quat()
+#     return t_o2h, q_o2h
