@@ -24,8 +24,8 @@ def main():
 
     task_name ="pnp"
     dataset_dir = "dataset/"
-    num_episodes = 3
-    onscreen_render = True
+    num_episodes = 50
+    onscreen_render = False
     render_cam_name = 'fixed'
 
     if not os.path.isdir(dataset_dir):
@@ -63,8 +63,11 @@ def main():
         # save the object trajectory
         object_trajectory = object_trajectory[1:]  # remove the initial zero row
         # Modify object_trajectory as per the requirement
-        object_trajectory[:150] = object_trajectory[150]
-        object_trajectory[250:] = object_trajectory[250]
+        # object_trajectory[:150] = object_trajectory[150]
+        # object_trajectory[250:] = object_trajectory[250]
+        ### debug start
+        object_trajectory[:] = object_trajectory[150]
+        ### debug end
         object_trajectory_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/object_trajectory.txt")
         np.savetxt(object_trajectory_path, object_trajectory)
 
@@ -118,7 +121,8 @@ def main():
             action = joint_traj.pop(0)
             ts = episode_replay.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
-            data_dict['/observations/env_state'].append(ts.observation['env_state'])
+            # data_dict['/observations/env_state'].append(ts.observation['env_state'])
+            data_dict['/observations/env_state'].append(object_trajectory[0])  #pick position
             data_dict['/action'].append(action)
 
         # HDF5

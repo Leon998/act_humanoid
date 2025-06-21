@@ -141,7 +141,10 @@ class PnPTask(HumanoidTask):
 
     @staticmethod
     def get_env_state(physics):
-        env_state = physics.named.data.qpos['object_joint'].copy()[:3]
+        ### if training
+        # env_state = physics.named.data.qpos['object_joint'].copy()[:3]
+        ### if inferring
+        env_state = np.array([-0.06, 0.58, 0.51])
         return env_state
 
     def get_reward(self, physics):

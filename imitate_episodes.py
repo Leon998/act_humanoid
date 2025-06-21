@@ -9,12 +9,10 @@ from tqdm import tqdm
 from einops import rearrange
 
 from constants import DT
-from constants import PUPPET_GRIPPER_JOINT_OPEN
 from utils import load_data # data functions
 from utils import sample_box_pose, sample_insertion_pose # robot functions
 from utils import compute_dict_mean, set_seed, detach_dict # helper functions
 from policy import ACTPolicy, CNNMLPPolicy
-from visualize_episodes import save_videos
 
 from sim_env import BOX_POSE
 
@@ -34,7 +32,7 @@ def main(args):
     num_epochs = args['num_epochs']
 
     # get task parameters
-    is_sim = task_name[:4] == 'sim_'
+    is_sim = True
     if is_sim:
         from constants import SIM_TASK_CONFIGS
         task_config = SIM_TASK_CONFIGS[task_name]
@@ -47,7 +45,7 @@ def main(args):
     camera_names = task_config['camera_names']
 
     # fixed parameters
-    state_dim = 7
+    state_dim = 9
     lr_backbone = 1e-5
     # backbone = 'resnet18'
     backbone = None
@@ -103,9 +101,9 @@ def main(args):
 
     train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val)
     # train_dataloader.dataset中每个episode里包含的内容：
-    # env_state(at start_ts), (position + orientation)                                  shape: [7]
-    # qpos_data(at start_ts),                                                           shape: [7]
-    # action_data([:action_len]为截取到的action，[action_len:]全为0),                      shape: [400, 7]
+    # env_state(at start_ts), (position + orientation)                                  shape: [9]
+    # qpos_data(at start_ts),                                                           shape: [9]
+    # action_data([:action_len]为截取到的action，[action_len:]全为0),                      shape: [400, 9]
     # is_pad(帧是(True)否(False)是被填充的，[:action_len]为False，[action_len:]全为True)     shape: [400]
     ### 解释：
         # episode_len：每个episode的原始总长（默认为400）
@@ -162,7 +160,6 @@ def get_image(ts, camera_names):
 
 
 def eval_bc(config, ckpt_name, save_episode=True):
-    left_arm_init = [0, -0.96, 1.16, 0, -0.3, 0, 0]
     set_seed(1000)
     ckpt_dir = config['ckpt_dir']
     state_dim = config['state_dim']
@@ -174,7 +171,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
     max_timesteps = config['episode_len']
     task_name = config['task_name']
     temporal_agg = config['temporal_agg']
-    onscreen_cam = 'angle'
+    onscreen_cam = 'fixed'
 
     # load policy and stats
     ckpt_path = os.path.join(ckpt_dir, ckpt_name)
@@ -255,7 +252,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
                     image_list.append(obs['images'])
                 else:
                     image_list.append({'main': obs['image']})
-                qpos_numpy = np.array(obs['qpos'])[7:]
+                qpos_numpy = np.array(obs['qpos'])
                 qpos = pre_process(qpos_numpy)
                 qpos = torch.from_numpy(qpos).float().cuda().unsqueeze(0)
                 qpos_history[:, t] = qpos
@@ -266,8 +263,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 ### query policy
                 if config['policy_class'] == "ACT":
                     if t % query_frequency == 0:  # %取余数，每隔query_frequency推理一次
-                        # all_actions = policy(qpos, curr_image)  # 即a_hat。形状: (1, num_queries=100, 7)
-                        all_actions = policy(qpos, curr_env_state)  # 即a_hat。形状: (1, num_queries=100, 7)
+                        # all_actions = policy(qpos, curr_image)  # 即a_hat。形状: (1, num_queries=100, 9)
+                        all_actions = policy(qpos, curr_env_state)  # 即a_hat。形状: (1, num_queries=100, 9)
                     if temporal_agg:  # 对action做指数加权
                         all_time_actions[[t], t:t+num_queries] = all_actions
                         actions_for_curr_step = all_time_actions[:, t]
@@ -288,8 +285,6 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 ### post-process actions
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
-                # 左臂初始化
-                action = np.concatenate((left_arm_init, action))
                 target_qpos = action
 
                 ### step the environment
@@ -301,9 +296,6 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 rewards.append(ts.reward)
 
             plt.close()
-        if real_robot:
-            move_grippers([env.puppet_bot_left, env.puppet_bot_right], [PUPPET_GRIPPER_JOINT_OPEN] * 2, move_time=0.5)  # open
-            pass
 
         rewards = np.array(rewards)
         episode_return = np.sum(rewards[rewards!=None])
@@ -311,9 +303,6 @@ def eval_bc(config, ckpt_name, save_episode=True):
         episode_highest_reward = np.max(rewards)
         highest_rewards.append(episode_highest_reward)
         print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
-
-        if save_episode:
-            save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
 
     success_rate = np.mean(np.array(highest_rewards) == env_max_reward)
     avg_return = np.mean(episode_returns)

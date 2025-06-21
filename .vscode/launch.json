@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug imitate_episodes.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "imitate_episodes.py",
+            "args": [
+                "--task_name", "pnp",
+                "--ckpt_dir", "ckpt/", // 替换为实际的检查点目录
+                "--policy_class", "ACT",
+                "--kl_weight", "10",
+                "--chunk_size", "100",
+                "--hidden_dim", "512",
+                "--batch_size", "8",
+                "--dim_feedforward", "3200",
+                "--num_epochs", "1000",
+                "--lr", "1e-5",
+                "--seed", "0",
+                // "--eval",
+                // "--onscreen_render",
+                // "--temporal_agg"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+    ]
+}

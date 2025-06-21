@@ -22,28 +22,27 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # DataLoader通过此函数迭代调用数据集中的数据，每次调用都按照下面的规则对数据做一些调整
-        sample_full_episode = False # hardcode
+        sample_full_episode = True # hardcode
 
         episode_id = self.episode_ids[index]
         dataset_path = os.path.join(self.dataset_dir, f'episode_{episode_id}.hdf5')
         with h5py.File(dataset_path, 'r') as root:
             is_sim = root.attrs['sim']
-            original_action_shape = root['/action'][:, 7:].shape
+            original_action_shape = root['/action'].shape
             episode_len = original_action_shape[0]
             if sample_full_episode:
                 start_ts = 0
             else:
                 start_ts = np.random.choice(episode_len)  # 猜测：采样随机的时刻作为起始时刻，增加数据集的多样性，即从任意时刻开始都能做完任务，从而提高鲁棒？
             # get observation at start_ts only
-            qpos = root['/observations/qpos'][start_ts][7:]
-            qvel = root['/observations/qvel'][start_ts][7:]
+            qpos = root['/observations/qpos'][start_ts]
             env_state = root['/observations/env_state'][start_ts]
             # image_dict = dict()
             # for cam_name in self.camera_names:
             #     image_dict[cam_name] = root[f'/observations/images/{cam_name}'][start_ts]
             # get all actions after and including start_ts
             if is_sim:
-                action = root['/action'][start_ts:][:, 7:]
+                action = root['/action'][start_ts:]
                 action_len = episode_len - start_ts
             else:
                 action = root['/action'][max(0, start_ts - 1):] # hack, to make timesteps more aligned
@@ -87,10 +86,9 @@ def get_norm_stats(dataset_dir, num_episodes):
     for episode_idx in range(num_episodes):
         dataset_path = os.path.join(dataset_dir, f'episode_{episode_idx}.hdf5')
         with h5py.File(dataset_path, 'r') as root:
-            qpos = root['/observations/qpos'][()][:, 7:]
-            qvel = root['/observations/qvel'][()][:, 7:]
+            qpos = root['/observations/qpos'][()]
             env_pos = root['/observations/env_state'][()][:,:3]
-            action = root['/action'][()][:, 7:]
+            action = root['/action'][()]
         all_qpos_data.append(torch.from_numpy(qpos))
         all_env_pos_data.append(torch.from_numpy(env_pos))
         all_action_data.append(torch.from_numpy(action))
