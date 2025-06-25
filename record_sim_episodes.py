@@ -35,51 +35,20 @@ def main():
 
     for episode_idx in range(num_episodes):
         print(f'{episode_idx=}')
-        print('Recording object trajectories')
+        # Load object position from file
+        object_position_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/object_position.txt")
+        object_position = np.loadtxt(object_position_path)
+        object_position += np.array([0, -0.05, 0.6])  # 位置调整
         # Load action sequence from file
         joint_traj_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/action_sequence.txt")
-        joint_traj = np.loadtxt(joint_traj_path)[:,]
+        joint_traj = np.loadtxt(joint_traj_path)
+        # Modify joint_traj as per the requirement
+        joint_traj[100:151, -1] = np.linspace(0, 1, 51)  # Uniformly change from 0 to 1
+        joint_traj[250:301, -1] = np.linspace(1, 0, 51)  # Uniformly change from 1 to 0
         # setup the environment
-        env = make_sim_env()
+        env = make_sim_env(task_name, object_position)
         ts = env.reset()
         episode = [ts]
-        object_trajectory = np.zeros((1, 3))
-        # setup plotting
-        # if onscreen_render:
-        #     ax = plt.subplot()
-        #     plt_img = ax.imshow(ts.observation['images'][render_cam_name])
-        #     plt.ion()
-        for step in range(episode_len):
-            action = joint_traj[step]
-            ts = env.step(action)
-            t_h2w, q_h2w = env.task.forward_kinematics('link7l', env.physics)
-            t_o2w = env.task.get_inhand_obj_pos(t_h2w)
-            object_trajectory = np.concatenate((object_trajectory, t_o2w.reshape(1, 3)), axis=0)
-            episode.append(ts)
-            # if onscreen_render:
-            #     plt_img.set_data(ts.observation['images'][render_cam_name])
-            #     plt.pause(0.001)
-        # plt.close()
-        # save the object trajectory
-        object_trajectory = object_trajectory[1:]  # remove the initial zero row
-        # Modify object_trajectory as per the requirement
-        # object_trajectory[:150] = object_trajectory[150]
-        # object_trajectory[250:] = object_trajectory[250]
-        ### debug start
-        object_trajectory[:] = object_trajectory[150]
-        ### debug end
-        object_trajectory_path = os.path.join(dataset_dir, f"source/pnp_side_grasp_{episode_idx}/object_trajectory.txt")
-        np.savetxt(object_trajectory_path, object_trajectory)
-
-        # clear unused variables
-        del env
-        del episode
-
-        # setup the environment
-        print('Replaying')
-        env = make_sim_env()
-
-        episode_replay = [ts]
         # setup plotting
         if onscreen_render:
             ax = plt.subplot()
@@ -88,13 +57,7 @@ def main():
         for step in range(episode_len):
             action = joint_traj[step]
             ts = env.step(action)
-            t_o2w = object_trajectory[step]
-            env.task.draw_traj('object_joint', t_o2w, env.physics)
-            elbow_position, _ = env.task.forward_kinematics('link4l', env.physics)
-            env.task.draw_traj('elbow_joint', elbow_position, env.physics)
-            # print(ts.observation['qpos'][-1])  # check hand open-close status
-            # print(ts.observation['env_state'])  # check object trajectory
-            episode_replay.append(ts)
+            episode.append(ts)
             if onscreen_render:
                 plt_img.set_data(ts.observation['images'][render_cam_name])
                 plt.pause(0.001)
@@ -105,7 +68,7 @@ def main():
         For each timestep:
         observations
         - qpos                  (9,)         'float64'
-        - env_state             (3,)          'float64'
+        - env_state             (7,)          'float64'
 
         action                  (9,)         'float64'
         """
@@ -115,14 +78,13 @@ def main():
             '/action': [],
         }
         joint_traj = joint_traj.tolist()
-        episode_replay = episode_replay[:-1]
+        episode = episode[:-1]
         max_timesteps = len(joint_traj)
         while joint_traj:
             action = joint_traj.pop(0)
-            ts = episode_replay.pop(0)
+            ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
-            # data_dict['/observations/env_state'].append(ts.observation['env_state'])
-            data_dict['/observations/env_state'].append(object_trajectory[0])  #pick position
+            data_dict['/observations/env_state'].append(ts.observation['env_state'])
             data_dict['/action'].append(action)
 
         # HDF5
@@ -133,7 +95,7 @@ def main():
             root.attrs['sim'] = True
             obs = root.create_group('observations')
             qpos = obs.create_dataset('qpos', (max_timesteps, 9))
-            env_state = obs.create_dataset('env_state', (max_timesteps, 3))
+            env_state = obs.create_dataset('env_state', (max_timesteps, 7))
             action = root.create_dataset('action', (max_timesteps, 9))
 
             for name, array in data_dict.items():

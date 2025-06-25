@@ -198,7 +198,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
         env_max_reward = 0
     else:
         from sim_env import make_sim_env
-        env = make_sim_env(task_name)
+        object_position = sample_box_pose()
+        env = make_sim_env(task_name, object_position)
         env_max_reward = env.task.max_reward
     # 设置查询频率和时间聚合参数
     query_frequency = policy_config['num_queries']  # 也就是chunk_size，默认100
@@ -214,11 +215,6 @@ def eval_bc(config, ckpt_name, save_episode=True):
     for rollout_id in range(num_rollouts):
         rollout_id += 0
         ### set task
-        if 'sim_transfer_cube' in task_name:
-            BOX_POSE[0] = sample_box_pose() # used in sim reset
-        elif 'sim_insertion' in task_name:
-            BOX_POSE[0] = np.concatenate(sample_insertion_pose()) # used in sim reset
-
         ts = env.reset()
 
         ### onscreen render

@@ -83,8 +83,8 @@ class Transformer(nn.Module):
         tgt = torch.zeros_like(query_embed)  # [100, 8, 512]
         memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)  # [4, 8, 512]
         hs = self.decoder(tgt, memory, memory_key_padding_mask=mask,
-                          pos=pos_embed, query_pos=query_embed)  # [7, 100, 8, 512]
-        hs = hs.transpose(1, 2)  # [7, 8, 100, 512]
+                          pos=pos_embed, query_pos=query_embed)  # [9, 100, 8, 512]
+        hs = hs.transpose(1, 2)  # [9, 8, 100, 512]
         return hs
 
 class TransformerEncoder(nn.Module):
