@@ -22,7 +22,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # DataLoader通过此函数迭代调用数据集中的数据，每次调用都按照下面的规则对数据做一些调整
-        sample_full_episode = True # hardcode
+        sample_full_episode = False # hardcode
 
         episode_id = self.episode_ids[index]
         dataset_path = os.path.join(self.dataset_dir, f'episode_{episode_id}.hdf5')
@@ -143,15 +143,14 @@ def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_s
 ### env utils
 
 def sample_box_pose():
-    x_range = [-0.1, -0.05]
+    x_range = [-0.15, -0.1]
     y_range = [0.55, 0.55]
     z_range = [0.54, 0.54]
 
     ranges = np.vstack([x_range, y_range, z_range])
     cube_position = np.random.uniform(ranges[:, 0], ranges[:, 1])
 
-    cube_quat = np.array([1, 0, 0, 0])
-    return np.concatenate([cube_position, cube_quat])
+    return cube_position
 
 def sample_insertion_pose():
     # Peg
