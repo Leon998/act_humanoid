@@ -24,8 +24,8 @@ def main():
 
     task_name ="pnp"
     dataset_dir = "dataset/"
-    num_episodes = 50
-    onscreen_render = False
+    num_episodes = 3
+    onscreen_render = True
     render_cam_name = 'fixed'
 
     if not os.path.isdir(dataset_dir):
@@ -68,7 +68,7 @@ def main():
         For each timestep:
         observations
         - qpos                  (9,)         'float64'
-        - env_state             (7,)          'float64'
+        - env_state             (14,)        'float64'
 
         action                  (9,)         'float64'
         """
@@ -95,7 +95,7 @@ def main():
             root.attrs['sim'] = True
             obs = root.create_group('observations')
             qpos = obs.create_dataset('qpos', (max_timesteps, 9))
-            env_state = obs.create_dataset('env_state', (max_timesteps, 7))
+            env_state = obs.create_dataset('env_state', (max_timesteps, 14))
             action = root.create_dataset('action', (max_timesteps, 9))
 
             for name, array in data_dict.items():

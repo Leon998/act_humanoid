@@ -7,7 +7,7 @@ from dm_control.rl import control
 from dm_control.suite import base
 from scipy.spatial.transform import Rotation as R
 
-from constants import DT, XML_DIR, START_ARM_POSE, HAND_ACTION_UNNORMALIZE, HAND_ACTION_NORMALIZE
+from constants import DT, XML_DIR, START_ARM_POSE, ELBOW_NAME, HAND_ACTION_UNNORMALIZE, HAND_ACTION_NORMALIZE
 
 import IPython
 e = IPython.embed
@@ -28,11 +28,15 @@ class HumanoidTask(base.Task):
         
 
     def before_step(self, action, physics):
+        # apply action
         env_action = np.zeros(36)
         left_arm_action = action[:8]
         left_hand_action = HAND_ACTION_UNNORMALIZE(action[8:])
         env_action[18:26] = left_arm_action
         env_action[26:36] = left_hand_action
+        # forward kinematics
+        elbow_position, _ = self.forward_kinematics(ELBOW_NAME, physics)
+        self.pos_track("elbow_joint", elbow_position, physics)
         super().before_step(env_action, physics)
         return
     
@@ -52,9 +56,9 @@ class HumanoidTask(base.Task):
 
         return position, orientation
     
-    # def draw_traj(self, name, position, physics):
-    #     # Visualize the position in the simulation environment
-    #     physics.named.data.qpos[name][:3] = position
+    def pos_track(self, name, position, physics):
+        # Track the position of a specific point
+        physics.named.data.qpos[name][:3] = position
     
 
     @staticmethod
@@ -68,9 +72,9 @@ class HumanoidTask(base.Task):
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
-        left_qvel_raw = qvel_raw[18:]
-        left_arm_qvel = left_qvel_raw[:8]
-        return np.array(left_arm_qvel)
+        left_arm_qvel = qvel_raw[18:26]
+        left_hand_qvel_raw = qvel_raw[26:36]
+        return np.concatenate([left_arm_qvel, left_hand_qvel_raw])
 
     @staticmethod
     def get_env_state(physics):
@@ -104,12 +108,16 @@ class PnPTask(HumanoidTask):
         box_pose = np.concatenate([np.array(self.box_position), np.array([1, 0, 0, 0])])
         box_start_idx = physics.model.name2id('box_joint', 'joint')
         np.copyto(physics.data.qpos[box_start_idx : box_start_idx + 7], box_pose)
+        # set elbow position
+        elbow_position, _ = self.forward_kinematics(ELBOW_NAME, physics)
+        self.pos_track("elbow_joint", elbow_position, physics)
         super().initialize_episode(physics)
 
     @staticmethod
     def get_env_state(physics):
         box_start_idx = physics.model.name2id('box_joint', 'joint')
-        env_state = physics.data.qpos.copy()[box_start_idx : box_start_idx + 7]
+        elbow_start_idx = box_start_idx + 7
+        env_state = physics.data.qpos.copy()[box_start_idx : elbow_start_idx + 7]
         return env_state
 
     def get_reward(self, physics):

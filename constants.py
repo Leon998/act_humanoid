@@ -45,6 +45,7 @@ START_ARM_POSE = [0, 0, 0, 0, -1.54, 0, 0, 0]
 HAND_OPEN = [1, -0.8] + [0 for _ in range(8)]  # 10 DoF hand open -> 0
 HAND_GRASP = [1.7, -0.5] + [0.7 for _ in range(8)]  # 10 DoF hand grasp, all fingers closed -> 1
 XML_DIR = str(pathlib.Path(__file__).parent.resolve()) + '/assets/dualarmhand0513/' # note: absolute path
+ELBOW_NAME = "link4l"
 
 def HAND_ACTION_NORMALIZE(hand_action):
     """

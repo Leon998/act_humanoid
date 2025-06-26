@@ -101,7 +101,7 @@ def main(args):
 
     train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val)
     # train_dataloader.dataset中每个episode里包含的内容：
-    # env_state(at start_ts), (position + orientation)                                  shape: [9]
+    # env_state(at start_ts), (position + orientation)                                  shape: [14]
     # qpos_data(at start_ts),                                                           shape: [9]
     # action_data([:action_len]为截取到的action，[action_len:]全为0),                      shape: [400, 9]
     # is_pad(帧是(True)否(False)是被填充的，[:action_len]为False，[action_len:]全为True)     shape: [400]
