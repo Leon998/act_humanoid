@@ -27,7 +27,7 @@ def load_hdf5(dataset_dir, dataset_name):
     return qpos, action
 
 def main():
-    dataset_dir = "dataset/pnp"
+    dataset_dir = "dataset_full_arm/pnp"
     episode_idx = 0
     dataset_name = f'episode_{episode_idx}'
 

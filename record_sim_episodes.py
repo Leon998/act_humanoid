@@ -23,7 +23,7 @@ def main():
     """
 
     task_name ="pnp"
-    dataset_dir = "dataset/"
+    dataset_dir = "dataset_full_arm/"
     num_episodes = 50
     onscreen_render = False
     render_cam_name = 'fixed'
