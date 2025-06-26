@@ -8,7 +8,7 @@
             "program": "imitate_episodes.py",
             "args": [
                 "--task_name", "pnp",
-                "--ckpt_dir", "ckpt/", // 替换为实际的检查点目录
+                "--ckpt_dir", "ckpt_full_arm/", // 替换为实际的检查点目录
                 "--policy_class", "ACT",
                 "--kl_weight", "10",
                 "--chunk_size", "100",

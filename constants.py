@@ -2,7 +2,7 @@ import pathlib
 import numpy as np
 
 ### Task parameters
-DATA_DIR = '/home/shixu/dev_shixu/act_humanoid/dataset'
+DATA_DIR = '/home/shixu/dev_shixu/act_humanoid/dataset_full_arm'
 SIM_TASK_CONFIGS = {
     'pnp':{
         'dataset_dir': DATA_DIR + '/pnp',
