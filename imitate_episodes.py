@@ -45,7 +45,7 @@ def main(args):
     camera_names = task_config['camera_names']
 
     # fixed parameters
-    state_dim = 9
+    state_dim = 5
     lr_backbone = 1e-5
     # backbone = 'resnet18'
     backbone = None
@@ -101,9 +101,9 @@ def main(args):
 
     train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val)
     # train_dataloader.dataset中每个episode里包含的内容：
-    # env_state(at start_ts), (position + orientation)                                  shape: [14]
-    # qpos_data(at start_ts),                                                           shape: [9]
-    # action_data([:action_len]为截取到的action，[action_len:]全为0),                      shape: [400, 9]
+    # env_state(at start_ts), (box pose + elbow pose)                                   shape: [14]
+    # qpos_data(at start_ts),                                                           shape: [5]
+    # action_data([:action_len]为截取到的action，[action_len:]全为0),                      shape: [400, 5]
     # is_pad(帧是(True)否(False)是被填充的，[:action_len]为False，[action_len:]全为True)     shape: [400]
     ### 解释：
         # episode_len：每个episode的原始总长（默认为400）
@@ -232,6 +232,14 @@ def eval_bc(config, ckpt_name, save_episode=True):
         qpos_list = []
         target_qpos_list = []
         rewards = []
+        # 读取物体位置和上臂运动轨迹
+        object_position_path = f"dataset/source/pnp_side_grasp_{rollout_id}/object_position.txt"
+        object_position = np.loadtxt(object_position_path)
+        object_position += np.array([0, -0.05, 0.6])  # 位置调整
+        env.task.box_position = object_position
+        env.task.initialize_episode(env.physics)  # 设置物体位置
+        joint_traj_path = f"dataset/source/pnp_side_grasp_{rollout_id}/action_sequence.txt"
+        joint_traj = np.loadtxt(joint_traj_path)[:,:4]  # 上臂的4个自由度
         # 在不计算梯度的模式下执行
         with torch.inference_mode():
             for t in range(max_timesteps):
@@ -259,8 +267,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 ### query policy
                 if config['policy_class'] == "ACT":
                     if t % query_frequency == 0:  # %取余数，每隔query_frequency推理一次
-                        # all_actions = policy(qpos, curr_image)  # 即a_hat。形状: (1, num_queries=100, 9)
-                        all_actions = policy(qpos, curr_env_state)  # 即a_hat。形状: (1, num_queries=100, 9)
+                        # all_actions = policy(qpos, curr_image)  # 即a_hat。形状: (1, num_queries=100, 5)
+                        all_actions = policy(qpos, curr_env_state)  # 即a_hat。形状: (1, num_queries=100, 5)
                     if temporal_agg:  # 对action做指数加权
                         all_time_actions[[t], t:t+num_queries] = all_actions
                         actions_for_curr_step = all_time_actions[:, t]
@@ -282,6 +290,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
                 target_qpos = action
+                upper_arm_qpos = joint_traj[t]
+                target_qpos = np.hstack((upper_arm_qpos, target_qpos))
 
                 ### step the environment
                 ts = env.step(target_qpos)

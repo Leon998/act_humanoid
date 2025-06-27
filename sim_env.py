@@ -64,7 +64,7 @@ class HumanoidTask(base.Task):
     @staticmethod
     def get_qpos(physics):
         qpos_raw = physics.data.qpos.copy()
-        left_arm_qpos = qpos_raw[18:26]
+        left_arm_qpos = qpos_raw[22:26]  # 肘关节以下的自由度
         left_hand_qpos_raw = qpos_raw[26:36]
         left_hand_qpos = [HAND_ACTION_NORMALIZE(left_hand_qpos_raw)]
         return np.concatenate([left_arm_qpos, left_hand_qpos])
@@ -72,7 +72,7 @@ class HumanoidTask(base.Task):
     @staticmethod
     def get_qvel(physics):
         qvel_raw = physics.data.qvel.copy()
-        left_arm_qvel = qvel_raw[18:26]
+        left_arm_qvel = qvel_raw[22:26]
         left_hand_qvel_raw = qvel_raw[26:36]
         return np.concatenate([left_arm_qvel, left_hand_qvel_raw])
 

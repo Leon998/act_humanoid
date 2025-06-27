@@ -24,8 +24,8 @@ def main():
 
     task_name ="pnp"
     dataset_dir = "dataset/"
-    num_episodes = 3
-    onscreen_render = True
+    num_episodes = 50
+    onscreen_render = False
     render_cam_name = 'fixed'
 
     if not os.path.isdir(dataset_dir):
@@ -67,10 +67,10 @@ def main():
         """
         For each timestep:
         observations
-        - qpos                  (9,)         'float64'
+        - qpos                  (5,)         'float64'
         - env_state             (14,)        'float64'
 
-        action                  (9,)         'float64'
+        action                  (5,)         'float64'
         """
         data_dict = {
             '/observations/qpos': [],
@@ -85,7 +85,7 @@ def main():
             ts = episode.pop(0)
             data_dict['/observations/qpos'].append(ts.observation['qpos'])
             data_dict['/observations/env_state'].append(ts.observation['env_state'])
-            data_dict['/action'].append(action)
+            data_dict['/action'].append(action[4:])
 
         # HDF5
         t0 = time.time()
@@ -94,9 +94,9 @@ def main():
         with h5py.File(dataset_path + '.hdf5', 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
             obs = root.create_group('observations')
-            qpos = obs.create_dataset('qpos', (max_timesteps, 9))
+            qpos = obs.create_dataset('qpos', (max_timesteps, 5))
             env_state = obs.create_dataset('env_state', (max_timesteps, 14))
-            action = root.create_dataset('action', (max_timesteps, 9))
+            action = root.create_dataset('action', (max_timesteps, 5))
 
             for name, array in data_dict.items():
                 root[name][...] = array

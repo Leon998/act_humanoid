@@ -20,7 +20,7 @@
                 "--seed", "0",
                 "--eval",
                 "--onscreen_render",
-                // "--temporal_agg"
+                "--temporal_agg"
             ],
             "console": "integratedTerminal",
             "justMyCode": true

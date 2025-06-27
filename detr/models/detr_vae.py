@@ -55,10 +55,10 @@ class DETRVAE(nn.Module):
         if backbones is not None:
             self.input_proj = nn.Conv2d(backbones[0].num_channels, hidden_dim, kernel_size=1)
             self.backbones = nn.ModuleList(backbones)
-            self.input_proj_robot_state = nn.Linear(9, hidden_dim)
+            self.input_proj_robot_state = nn.Linear(5, hidden_dim)
         else:
-            # input_dim = 9 + 14 # robot_state + env_state
-            self.input_proj_robot_state = nn.Linear(9, hidden_dim)
+            # input_dim = 5 + 14 # robot_state + env_state
+            self.input_proj_robot_state = nn.Linear(5, hidden_dim)
             self.input_proj_env_state = nn.Linear(14, hidden_dim)
             self.pos = torch.nn.Embedding(2, hidden_dim)
             # self.pos = torch.nn.Embedding(1, hidden_dim)
@@ -67,8 +67,8 @@ class DETRVAE(nn.Module):
         # encoder extra parameters
         self.latent_dim = 32 # final size of latent z # TODO tune
         self.cls_embed = nn.Embedding(1, hidden_dim) # extra cls token embedding
-        self.encoder_action_proj = nn.Linear(9, hidden_dim) # project action to embedding
-        self.encoder_joint_proj = nn.Linear(9, hidden_dim)  # project qpos to embedding
+        self.encoder_action_proj = nn.Linear(5, hidden_dim) # project action to embedding
+        self.encoder_joint_proj = nn.Linear(5, hidden_dim)  # project qpos to embedding
         self.latent_proj = nn.Linear(hidden_dim, self.latent_dim*2) # project hidden state to latent std, var
         self.register_buffer('pos_table', get_sinusoid_encoding_table(1+1+num_queries, hidden_dim)) # [CLS], qpos, a_seq
 
@@ -142,7 +142,7 @@ class DETRVAE(nn.Module):
             env_state = self.input_proj_env_state(env_state)
             transformer_input = torch.cat([proprio_input.unsqueeze(0), env_state.unsqueeze(0)], axis=0) # seq length = 2, [2, 8, 512]
             hs = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight, latent_input, proprio_input, self.additional_pos_embed.weight)[0]
-        a_hat = self.action_head(hs)  # [8, 100, 9]
+        a_hat = self.action_head(hs)  # [8, 100, 5]
         is_pad_hat = self.is_pad_head(hs)  # [8, 100, 1]
         return a_hat, is_pad_hat, [mu, logvar]
 
@@ -200,7 +200,7 @@ class CNNMLP(nn.Module):
         for cam_feature in all_cam_features:
             flattened_features.append(cam_feature.reshape([bs, -1]))
         flattened_features = torch.cat(flattened_features, axis=1) # 768 each
-        features = torch.cat([flattened_features, qpos], axis=1) # qpos: 9
+        features = torch.cat([flattened_features, qpos], axis=1) # qpos: 5
         a_hat = self.mlp(features)
         return a_hat
 
@@ -235,7 +235,7 @@ def build_encoder(args):
 
 
 def build(args):
-    state_dim = 9 # TODO hardcode
+    state_dim = 5 # TODO hardcode
 
     
     if not args.backbone:
@@ -266,7 +266,7 @@ def build(args):
     return model
 
 def build_cnnmlp(args):
-    state_dim = 9 # TODO hardcode
+    state_dim = 5 # TODO hardcode
 
     # From state
     # backbone = None # from state for now, no need for conv nets
